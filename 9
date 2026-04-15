@@ -1,0 +1,59 @@
+import tensorflow as tf
+import numpy as np
+from PIL import Image
+import os
+
+# TFLiteモデルのパス
+model_path = 'insect_classifier.tflite'
+
+# インタープリタをロード
+interpreter = tf.lite.Interpreter(model_path=model_path)
+interpreter.allocate_tensors()
+
+# 入力と出力のテンソルの詳細を取得
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
+
+# モデルが期待する入力サイズ
+input_shape = input_details[0]['shape']
+print(f"TFLiteモデルの入力形状: {input_shape}")
+
+# ラベルエンコーダからクラス名を取得 (以前のセルで作成された new_label_encoder を使用)
+# 念のため、new_label_encoder が存在するか確認
+if 'new_label_encoder' in locals() and new_label_encoder is not None:
+    class_names = new_label_encoder.classes_
+    print(f"予測されるクラス数: {len(class_names)}")
+else:
+    print("エラー: 'new_label_encoder' が見つかりません。モデルの訓練とデータ準備を再度実行してください。")
+    class_names = [str(i) for i in range(output_details[0]['shape'][1])] # ダミーのクラス名を生成
+
+
+def preprocess_image(image_path, target_size):
+    img = Image.open(image_path).convert('RGB')
+    img = img.resize(target_size) # モデルの入力サイズにリサイズ
+    img_array = np.array(img).astype(np.float32) / 255.0 # 0-1に正規化
+    img_array = np.expand_dims(img_array, axis=0) # バッチ次元を追加 (1, height, width, channels)
+    return img_array
+
+def predict_image(image_path):
+    # 画像の前処理
+    input_data = preprocess_image(image_path, (input_shape[1], input_shape[2]))
+
+    # 入力テンソルにデータをセット
+    interpreter.set_tensor(input_details[0]['index'], input_data)
+
+    # 推論を実行
+    interpreter.invoke()
+
+    # 出力テンソルから結果を取得
+    output_data = interpreter.get_tensor(output_details[0]['index'])
+
+    # 確率が最も高いクラスのインデックスを取得
+    predicted_class_index = np.argmax(output_data)
+    confidence = np.max(output_data) * 100
+
+    # クラス名と信頼度を返す
+    predicted_class_name = class_names[predicted_class_index]
+    return predicted_class_name, confidence
+
+print("TensorFlow Liteインタープリタがロードされ、予測関数が定義されました。")
