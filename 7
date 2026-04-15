@@ -1,0 +1,46 @@
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
+
+# クラス数の定義
+num_classes = len(np.unique(y_filtered)) # y_filtered は前処理済みのラベル
+
+# データセットが訓練可能か確認
+if num_classes == 0 or len(X_train) == 0 or len(y_train) == 0:
+    print("訓練データが不足しているため、モデルを訓練できません。より多くのデータを取得するか、クラス数を調整してください。")
+else:
+    print(f"モデルを訓練中。クラス数: {num_classes}、訓練データ数: {len(X_train)}")
+
+    # シンプルなCNNモデルの構築
+    model = keras.Sequential([
+        keras.Input(shape=IMAGE_SIZE + (3,)), # 画像サイズ (128, 128, 3)
+        layers.Conv2D(32, (3, 3), activation='relu'),
+        layers.MaxPooling2D((2, 2)),
+        layers.Conv2D(64, (3, 3), activation='relu'),
+        layers.MaxPooling2D((2, 2)),
+        layers.Conv2D(128, (3, 3), activation='relu'),
+        layers.MaxPooling2D((2, 2)),
+        layers.Flatten(),
+        layers.Dense(64, activation='relu'),
+        layers.Dense(num_classes, activation='softmax') # 多クラス分類の場合softmax
+    ])
+
+    # モデルのコンパイル
+    model.compile(
+        optimizer='adam',
+        loss='sparse_categorical_crossentropy', # ラベルが整数のためsparse_categorical_crossentropy
+        metrics=['accuracy']
+    )
+
+    # モデルの概要を表示
+    model.summary()
+
+    # モデルの訓練
+    # 訓練データにデータ拡張を適用したジェネレータを使用
+    history = model.fit(
+        train_generator, # データ拡張された訓練データを使用
+        epochs=30, # 訓練データが少ないため、エポック数を増やして訓練を強化
+        validation_data=(X_test, y_test) # テストデータで検証
+    )
+
+    print("\nモデルの訓練が完了しました。")
