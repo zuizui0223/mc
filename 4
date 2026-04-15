@@ -1,0 +1,49 @@
+import numpy as np
+from PIL import Image
+import os
+
+# ダウンロードディレクトリと画像サイズの定義
+DOWNLOAD_DIR = "inaturalist_images"
+IMAGE_SIZE = (128, 128) # モデル入力用に画像をリサイズするサイズ
+
+# 観察IDと種別名のマッピングを作成
+# data変数は前のセルでAPIから取得したレスポンス
+observation_to_species = {}
+for obs in data['results']:
+    if obs['species_guess'] is not None and obs['species_guess'] != "None": # 'None'文字列も除外
+        observation_to_species[str(obs['id'])] = obs['species_guess']
+
+images = []
+labels = []
+
+# ダウンロードした画像を読み込み、前処理とラベル付けを行う
+print("画像の読み込み、前処理（リサイズ、正規化）、ラベル抽出を開始します...")
+for filename in os.listdir(DOWNLOAD_DIR):
+    if filename.endswith(".png"):
+        obs_id = filename.split('_')[1].split('.')[0]
+        if obs_id in observation_to_species: # species_guessがある画像のみを対象
+            img_path = os.path.join(DOWNLOAD_DIR, filename)
+            try:
+                img = Image.open(img_path).convert('RGB') # RGBに変換して3チャンネルにする
+                img = img.resize(IMAGE_SIZE)             # 指定サイズにリサイズ
+                img_array = np.array(img) / 255.0         # ピクセル値を0-1に正規化
+                images.append(img_array)
+                labels.append(observation_to_species[obs_id])
+            except Exception as e:
+                print(f"画像 {filename} の処理中にエラーが発生しました: {e}")
+
+# リストをNumPy配列に変換
+X_preprocessed = np.array(images)
+y_species_preprocessed = np.array(labels)
+
+print("\n画像の読み込み、リサイズ、正規化、およびラベルの抽出が完了しました。")
+print(f"前処理後の総画像数: {len(X_preprocessed)}")
+print(f"画像の形状: {X_preprocessed.shape[1:]}")
+print(f"抽出されたユニークな種別数: {len(np.unique(y_species_preprocessed))}")
+
+# 次のステップのために変数を準備
+# これらは、後続のセルでラベルエンコーディングとデータ分割に使用されます。
+# 現在は単に前処理された画像データとラベルの生データとして扱います。
+# X は画像データ、y_species は対応する種別名（文字列）
+X = X_preprocessed
+y_species = y_species_preprocessed
