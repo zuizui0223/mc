@@ -1,0 +1,62 @@
+import requests
+import json
+
+# iNaturalist APIのエンドポイント
+API_URL = "https://api.inaturalist.org/v1/observations"
+
+# 検索クエリのパラメータを設定
+# 訪花昆虫（ハチ、チョウ、ハエ）のタクソンIDを設定
+# ハチ (Apidae): 47217, チョウ (Rhopalocera): 47224, ハエ (Diptera): 47192
+base_params = {
+    "taxon_id": "47217,47224,47192", # 訪花昆虫のタクソンIDを複数指定
+    "photos": "true",    # 写真があるもののみ
+    "identified": "true", # 識別済みのもののみ
+    "per_page": 200,     # 1ページあたりの結果数（最大200に増加）
+    "place_id": "6737"   # 日本に限定（ユーザーからの情報に基づいて6737に修正）
+}
+
+all_results = []
+total_results = 0
+num_pages_to_fetch = 100 # ここで取得するページ数を指定します (3から100に変更)
+
+print(f"iNaturalist APIから {num_pages_to_fetch} ページ分のデータを取得します... (訪花昆虫、日本に限定)")
+
+for page_num in range(1, num_pages_to_fetch + 1):
+    params = base_params.copy()
+    params["page"] = page_num
+
+    print(f"  ページ {page_num}/{num_pages_to_fetch} をリクエスト中... {API_URL}?{requests.compat.urlencode(params)}")
+    response = requests.get(API_URL, params=params)
+
+    if response.status_code == 200:
+        page_data = response.json()
+        if page_num == 1: # 最初のページで総件数を取得
+            total_results = page_data['total_results']
+        all_results.extend(page_data['results'])
+        print(f"  ページ {page_num} で {len(page_data['results'])} 件の観察データを取得しました。")
+        if not page_data['results']: # 取得できるデータがなくなったらループを抜ける
+            break
+    else:
+        print(f"エラーが発生しました: {response.status_code} - {response.text}")
+        break
+
+# 全てのデータを格納する辞書を作成
+data = {
+    'total_results': total_results,
+    'page': num_pages_to_fetch, # 最終的に取得したページ数（またはリクエストしたページ数）
+    'per_page': base_params['per_page'],
+    'results': all_results
+}
+
+print(f"\n合計 {data['total_results']} 件中、{len(data['results'])} 件の観察データが見つかりました（{num_pages_to_fetch} ページから）。")
+print("最初の5件の観察データのタイトルと写真URLを表示します:")
+for i, result in enumerate(data['results'][:5]):
+    description = result.get('description', 'No description')
+    print(f"--- Observation {i+1} ---")
+    print(f"Species: {result['species_guess']}")
+    print(f"Observed on: {result['observed_on']}")
+    # 最初の写真のURLを取得
+    if result['photos']:
+        print(f"Photo URL: {result['photos'][0]['url']}")
+    else:
+        print("No photo available for this observation.")
