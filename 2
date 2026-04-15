@@ -1,0 +1,46 @@
+import os
+import requests
+from PIL import Image
+from io import BytesIO
+
+# ダウンロードする画像の保存先ディレクトリ
+DOWNLOAD_DIR = "inaturalist_images"
+if not os.path.exists(DOWNLOAD_DIR):
+    os.makedirs(DOWNLOAD_DIR)
+
+# 画像ダウンロード関数
+def download_image(url, filename):
+    try:
+        response = requests.get(url, stream=True)
+        response.raise_for_status() # HTTPエラーを確認
+        img = Image.open(BytesIO(response.content))
+        # PNG形式で保存 (JPGの場合もあるが、ここでは統一)
+        img.save(os.path.join(DOWNLOAD_DIR, filename + ".png"))
+        return True
+    except requests.exceptions.RequestException as e:
+        print(f"画像ダウンロードエラー {url}: {e}")
+        return False
+    except Exception as e:
+        print(f"画像処理エラー {url}: {e}")
+        return False
+
+print(f"{data['total_results']}件の観察データから画像をダウンロードします（写真があるもののみ）。")
+
+downloaded_count = 0
+for i, result in enumerate(data['results']):
+    if result['photos']:
+        photo_url = result['photos'][0]['url']
+        # ファイル名をユニークにするために観察IDを使用
+        observation_id = result['id']
+        filename = f"observation_{observation_id}"
+        if download_image(photo_url, filename):
+            downloaded_count += 1
+
+        # 以前のダウンロード制限を解除しました。全ての画像がダウンロードされます。
+
+print(f"{downloaded_count}枚の画像を {DOWNLOAD_DIR} にダウンロードしました。")
+
+# ダウンロードしたファイルの確認 (最初の5ファイル)
+print(f"\n{DOWNLOAD_DIR} ディレクトリのファイル一覧 (最初の5件):")
+for f_name in os.listdir(DOWNLOAD_DIR)[:5]:
+    print(f_name)
