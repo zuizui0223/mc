@@ -1,0 +1,21 @@
+import tensorflow as tf
+
+# モデルが訓練されているか確認
+if 'model' in locals():
+    # KerasモデルをTensorFlow Liteコンバータで変換
+    converter = tf.lite.TFLiteConverter.from_keras_model(model)
+    
+    # 最適化オプションを設定（デフォルトではサイズ最適化が適用されます）
+    # 更なる最適化として、量子化を適用することも可能ですが、まずはデフォルトで変換します。
+    # converter.optimizations = [tf.lite.Optimize.DEFAULT]
+    
+    tflite_model = converter.convert()
+    
+    # 変換したモデルをファイルに保存
+    tflite_model_path = 'insect_classifier.tflite'
+    with open(tflite_model_path, 'wb') as f:
+        f.write(tflite_model)
+        
+    print(f"TensorFlow Liteモデルが '{tflite_model_path}' に保存されました。")
+else:
+    print("モデルが見つかりません。まずモデルを訓練してください。")
