@@ -1,0 +1,91 @@
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from PIL import Image
+import os
+
+# ダウンロードディレクトリと画像サイズの定義
+DOWNLOAD_DIR = "inaturalist_images"
+IMAGE_SIZE = (128, 128) # モデル入力用に画像をリサイズするサイズ
+
+# 観察IDと種別名のマッピングを作成
+# data変数は前のセルでAPIから取得したレスポンス
+observation_to_species = {}
+for obs in data['results']:
+    if obs['species_guess'] is not None and obs['species_guess'] != "None": # 'None'文字列も除外
+        observation_to_species[str(obs['id'])] = obs['species_guess']
+
+images = []
+labels = []
+
+# ダウンロードした画像を読み込み、前処理とラベル付けを行う
+print("画像の読み込み、前処理、ラベル付けを開始します...")
+for filename in os.listdir(DOWNLOAD_DIR):
+    if filename.endswith(".png"):
+        obs_id = filename.split('_')[1].split('.')[0]
+        if obs_id in observation_to_species: # species_guessがある画像のみを対象
+            img_path = os.path.join(DOWNLOAD_DIR, filename)
+            try:
+                img = Image.open(img_path).convert('RGB') # RGBに変換して3チャンネルにする
+                img = img.resize(IMAGE_SIZE)             # 指定サイズにリサイズ
+                img_array = np.array(img) / 255.0         # ピクセル値を0-1に正規化
+                images.append(img_array)
+                labels.append(observation_to_species[obs_id])
+            except Exception as e:
+                print(f"画像 {filename} の処理中にエラーが発生しました: {e}")
+
+# リストをNumPy配列に変換
+X = np.array(images)
+y_species = np.array(labels)
+
+# ラベルを数値にエンコード (最初のエンコード)
+label_encoder = LabelEncoder()
+y = label_encoder.fit_transform(y_species)
+
+# クラスごとのサンプル数をカウント
+unique_classes, counts = np.unique(y, return_counts=True)
+
+# サンプル数が2つ未満のクラスを特定
+single_sample_classes = unique_classes[counts < 2]
+
+# サンプル数が2つ以上のクラスに属するデータのみをフィルタリング
+filtered_indices = [i for i, label_val in enumerate(y) if label_val not in single_sample_classes]
+
+# Initialize variables to avoid NameError if filtered_indices is empty
+X_filtered = np.array([])
+y_filtered = np.array([])
+new_label_encoder = None
+num_classes = 0 # Initialize num_classes
+X_train, X_test, y_train, y_test = np.array([]), np.array([]), np.array([]), np.array([])
+
+if len(filtered_indices) == 0:
+    print("データセットに訓練/テスト分割に必要な十分なサンプルを持つクラスがありません。")
+    # X_train, X_test, y_train, y_test are already initialized to empty arrays
+    # X_filtered, y_filtered, num_classes are also initialized above
+else:
+    X_filtered = X[filtered_indices]
+    y_filtered_raw_labels = y[filtered_indices]
+
+    # ここで新しいLabelEncoderを作成し、y_filtered_raw_labelsを再エンコードして連続したラベルにする
+    # これにより、Kerasが期待する0からの連続したクラスインデックスが保証されます。
+    new_label_encoder = LabelEncoder()
+    y_filtered = new_label_encoder.fit_transform(y_filtered_raw_labels)
+    num_classes = len(np.unique(y_filtered)) # Define num_classes here
+
+    # データセットを訓練用とテスト用に分割（フィルタリング後にstratifyを使用）
+    X_train, X_test, y_train, y_test = train_test_split(X_filtered, y_filtered, test_size=0.5, random_state=42, stratify=y_filtered)
+
+
+print("\nデータセットの準備が完了しました。")
+print(f"総画像数: {len(X_filtered)}")
+# Handle empty array shape for printing
+print(f"画像の形状: {X_filtered.shape[1:] if X_filtered.shape else IMAGE_SIZE + (3,)}")
+print(f"クラス数: {num_classes}")
+print(f"訓練データ数: {len(X_train)}")
+print(f"テストデータ数: {len(X_test)}")
+
+# ラベルエンコーダが学習したクラス名を表示
+if new_label_encoder is not None: # new_label_encoderが定義されている場合のみ表示
+    print("\n検出された昆虫の種別:")
+    for i, class_name in enumerate(new_label_encoder.classes_):
+        print(f"  {i}: {class_name}")
