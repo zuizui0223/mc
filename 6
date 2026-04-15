@@ -1,0 +1,25 @@
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+# データ拡張の設定
+# ここでは、ランダムな回転、幅/高さシフト、せん断、ズーム、水平反転を適用します。
+datagen = ImageDataGenerator(
+    rotation_range=20,
+    width_shift_range=0.2,
+    height_shift_range=0.2,
+    shear_range=0.2,
+    zoom_range=0.2,
+    horizontal_flip=True,
+    fill_mode='nearest' # 変換で空白ができた場合の埋め方
+)
+
+# 訓練データにデータ拡張を適用するためのジェネレータを作成
+train_generator = datagen.flow(
+    X_train, y_train,
+    batch_size=len(X_train) # バッチサイズを訓練データの全数に設定（小規模データセット向け）
+)
+
+print("データ拡張ジェネレータが設定されました。")
+print(f"訓練データ拡張後のバッチサイズ: {train_generator.batch_size}")
+# print(f"訓練データ拡張後のサンプル数 (1エポックあたり): {train_generator.samples}") # この行がエラーの原因だったため削除
+
+# テストデータは拡張しないため、直接使用します。
