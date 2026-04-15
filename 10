@@ -1,0 +1,35 @@
+import random
+
+# ダウンロードした画像があるディレクトリ
+DOWNLOAD_DIR = "inaturalist_images"
+
+# ディレクトリ内の画像ファイルをリストアップ
+image_files = [f for f in os.listdir(DOWNLOAD_DIR) if f.endswith('.png')]
+
+if image_files:
+    # ランダムに1つ画像を選択
+    sample_image_name = random.choice(image_files)
+    sample_image_path = os.path.join(DOWNLOAD_DIR, sample_image_name)
+
+    print(f"選択された画像: {sample_image_path}")
+
+    # 予測を実行
+    predicted_species, confidence = predict_image(sample_image_path)
+
+    print(f"予測された種別: {predicted_species}")
+    print(f"信頼度: {confidence:.2f}%")
+
+    # 元のラベル（もしあれば）と予測を比較
+    obs_id_from_filename = sample_image_name.split('_')[1].split('.')[0]
+    if obs_id_from_filename in observation_to_species:
+        original_species = observation_to_species[obs_id_from_filename]
+        print(f"元のラベル（種別）: {original_species}")
+        if original_species == predicted_species:
+            print("予測は元のラベルと一致します。")
+        else:
+            print("予測は元のラベルと一致しません。")
+    else:
+        print("元のラベル情報は利用できません。")
+
+else:
+    print("ダウンロードされた画像が見つかりませんでした。")
