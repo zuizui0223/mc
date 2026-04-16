@@ -1,0 +1,81 @@
+import numpy as np
+import tensorflow as tf
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# TensorFlow Liteモデルの読み込み
+interpreter = tf.lite.Interpreter(model_path=tflite_model_path)
+interpreter.allocate_tensors()
+
+# モデルの入出力テンソルの詳細を取得
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
+
+print(f"入力テンソル情報: {input_details}")
+print(f"出力テンソル情報: {output_details}")
+
+# 入力データの型がfloat32であることを確認し、必要に応じて変換
+input_shape = input_details[0]['shape']
+if input_details[0]['dtype'] == np.float32:
+    X_test_input = X_test.astype(np.float32)
+else:
+    print(f"警告: 入力テンソルの型が異なります。モデルの入力型は {input_details[0]['dtype']} です。")
+    X_test_input = X_test
+
+predictions = []
+for i in range(len(X_test_input)):
+    # 各画像をモデルの期待する入力形状にリシェイプ
+    input_data = np.expand_dims(X_test_input[i], axis=0)
+
+    interpreter.set_tensor(input_details[0]['index'], input_data)
+    interpreter.invoke()
+    output_data = interpreter.get_tensor(output_details[0]['index'])
+    predictions.append(output_data[0])
+
+# 推論結果をNumPy配列に変換
+predictions = np.array(predictions)
+
+# 最も高い確率を持つクラスのインデックスを取得
+y_pred = np.argmax(predictions, axis=1)
+
+# 精度を計算
+accuracy = accuracy_score(y_test, y_pred)
+print(f"\nモデルのテスト精度: {accuracy:.4f}")
+
+# クラス名を取得（new_label_encoderが存在する場合）
+if 'new_label_encoder' in locals() and new_label_encoder is not None:
+    # new_label_encoderはy_filtered_raw_labels (元のエンコードされた数値ラベル) を 
+    # y_filtered (0からの連続した数値ラベル) に再エンコードしています。
+    # したがって、y_test (0からの連続した数値ラベル) をnew_label_encoderで逆変換すると、
+    # 元のエンコードされた数値ラベルが取得できます。
+    original_encoded_labels_in_test = new_label_encoder.inverse_transform(np.unique(y_test))
+    
+    # その後、最初のlabel_encoder (y_speciesをエンコードしたもの) でさらに逆変換することで、
+    # 実際の文字列の種別名を取得できます。
+    target_names = label_encoder.inverse_transform(original_encoded_labels_in_test)
+    
+    # Classification Reportを表示
+    print("\n分類レポート:")
+    print(classification_report(y_test, y_pred, target_names=target_names, zero_division=0))
+
+    # 混同行列を表示
+    cm = confusion_matrix(y_test, y_pred)
+    plt.figure(figsize=(15, 12))
+    sns.heatmap(cm, annot=False, fmt='d', cmap='Blues', xticklabels=target_names, yticklabels=target_names)
+    plt.xlabel('予測ラベル')
+    plt.ylabel('真のラベル')
+    plt.title('混同行列')
+    plt.show()
+else:
+    print("\n分類レポートと混同行列を表示するには、new_label_encoderが必要です。")
+    print("分類レポート:")
+    print(classification_report(y_test, y_pred, zero_division=0))
+
+    cm = confusion_matrix(y_test, y_pred)
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(cm, annot=False, fmt='d', cmap='Blues')
+    plt.xlabel('予測ラベル')
+    plt.ylabel('真のラベル')
+    plt.title('混同行列')
+    plt.show()
