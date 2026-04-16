@@ -6,9 +6,8 @@ API_URL = "https://api.inaturalist.org/v1/observations"
 
 # 検索クエリのパラメータを設定
 # 訪花昆虫（ハチ、チョウ、ハエ）のタクソンIDを設定
-# ハチ (Apidae): 47217, チョウ (Rhopalocera): 47224, ハエ (Diptera): 47192
 base_params = {
-    "taxon_id": "47217,47224,47192", # 訪花昆虫のタクソンIDを複数指定
+    "taxon_id": "47157", # 訪花昆虫のタクソンIDを複数指定
     "photos": "true",    # 写真があるもののみ
     "identified": "true", # 識別済みのもののみ
     "per_page": 200,     # 1ページあたりの結果数（最大200に増加）
@@ -17,7 +16,7 @@ base_params = {
 
 all_results = []
 total_results = 0
-num_pages_to_fetch = 50 # ここで取得するページ数を指定します (3から100に変更)
+num_pages_to_fetch = 10 # ここで取得するページ数を指定します 
 
 print(f"iNaturalist APIから {num_pages_to_fetch} ページ分のデータを取得します... (訪花昆虫、日本に限定)")
 
